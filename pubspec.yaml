@@ -1,0 +1,22 @@
+name: moodmatchproject
+description: A new Flutter project for managing tasks, projects, and daily moods.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.0.5
+  table_calendar: ^3.0.9
+  intl: ^0.18.1 # Necessário para formatação de datas
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
