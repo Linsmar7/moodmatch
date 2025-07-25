@@ -1,11 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'providers/app_provider.dart';
 import 'screens/home_screen.dart';
+import 'models/task.dart';
+import 'models/project.dart';
+import 'models/mood_entry.dart';
 
-void main() {
+Future<void> main() async {
+  // Garante que os bindings do Flutter foram inicializados antes de qualquer outra coisa
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializa o Hive
+  await Hive.initFlutter();
+
+  // Registra os adaptadores que geramos
+  Hive.registerAdapter(TaskAdapter());
+  Hive.registerAdapter(ProjectAdapter());
+  Hive.registerAdapter(MoodEntryAdapter());
+
+  // Abre as "caixas" (boxes) do Hive onde os dados serão armazenados
+  await Hive.openBox<Project>('projects');
+  await Hive.openBox<Task>('tasks');
+  await Hive.openBox<MoodEntry>('moods');
+
   // Inicializa a localização para o calendário
   initializeDateFormatting('pt_BR', null).then((_) {
     runApp(const MyApp());
@@ -17,7 +38,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // O ChangeNotifierProvider disponibiliza o AppProvider para toda a árvore de widgets
     return ChangeNotifierProvider(
       create: (context) => AppProvider(),
       child: MaterialApp(
@@ -30,13 +50,6 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.dark,
           scaffoldBackgroundColor: const Color(0xFF121212),
           cardColor: const Color(0xFF1E1E1E),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF1E1E1E),
-            elevation: 0,
-          ),
-          floatingActionButtonTheme: const FloatingActionButtonThemeData(
-            backgroundColor: Colors.teal,
-          ),
         ),
         home: const HomeScreen(),
       ),

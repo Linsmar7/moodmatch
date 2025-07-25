@@ -1,75 +1,74 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../models/task.dart';
 import '../models/project.dart';
 import '../models/mood_entry.dart';
 
 class AppProvider with ChangeNotifier {
-  final List<Project> _projects = [
-    Project(id: 'p1', name: 'App Flutter Pessoal'),
-    Project(id: 'p2', name: 'Estudos de Fim de Ano'),
-  ];
+  // Agora, em vez de listas, temos referências para as "caixas" do Hive
+  late Box<Project> _projectsBox;
+  late Box<Task> _tasksBox;
+  late Box<MoodEntry> _moodsBox;
 
-  final List<Task> _tasks = [
-    Task(
-      id: 't1',
-      name: 'Configurar ambiente Flutter',
-      category: 'Desenvolvimento',
-      dueDate: DateTime.now().add(const Duration(days: 1)),
-      idealMood: 'Focado',
-      priority: 'Alta',
-      description: 'Instalar Flutter SDK, Android Studio e configurar emuladores.',
-      projectId: 'p1',
-    ),
-    Task(
-      id: 't2',
-      name: 'Ler documentação do Provider',
-      category: 'Estudo',
-      dueDate: DateTime.now().add(const Duration(days: 3)),
-      idealMood: 'Curioso',
-      priority: 'Média',
-      description: 'Entender como o Provider funciona para gerenciamento de estado.',
-      projectId: 'p2',
-    ),
-  ];
+  // No construtor, inicializamos as caixas e carregamos os dados
+  AppProvider() {
+    _projectsBox = Hive.box<Project>('projects');
+    _tasksBox = Hive.box<Task>('tasks');
+    _moodsBox = Hive.box<MoodEntry>('moods');
+  }
 
-  final Map<DateTime, MoodEntry> _moods = {};
+  // Os getters agora leem diretamente das caixas do Hive
+  List<Project> get projects => _projectsBox.values.toList();
+  List<Task> get tasks => _tasksBox.values.toList();
+  // Para os humores, convertemos para um Map como antes
+  Map<DateTime, MoodEntry> get moods {
+    final moodMap = <DateTime, MoodEntry>{};
+    for (var mood in _moodsBox.values) {
+      final dateKey = DateTime(mood.date.year, mood.date.month, mood.date.day);
+      moodMap[dateKey] = mood;
+    }
+    return moodMap;
+  }
 
-  List<Project> get projects => [..._projects];
-  List<Task> get tasks => [..._tasks];
-  Map<DateTime, MoodEntry> get moods => {..._moods};
-
+  // Os métodos de adição agora salvam no Hive. O Hive usa uma chave (key) para cada item.
+  // Usaremos o ID do objeto como chave.
   void addProject(Project project) {
-    _projects.add(project);
+    _projectsBox.put(project.id, project);
     notifyListeners();
   }
 
   void addTask(Task task) {
-    _tasks.add(task);
+    _tasksBox.put(task.id, task);
+    notifyListeners();
+  }
+
+  void addOrUpdateMood(MoodEntry moodEntry) {
+    // A chave para o humor será a data formatada, para garantir que só haja um por dia
+    final key = moodEntry.date.toIso8601String().substring(0, 10);
+    _moodsBox.put(key, moodEntry);
+    notifyListeners();
+  }
+
+  // Os métodos de exclusão removem do Hive pela chave
+  void deleteProject(Project project) {
+    // Remove todas as tarefas associadas ao projeto
+    final tasksToDelete = _tasksBox.values.where((task) => task.projectId == project.id).toList();
+    for (var task in tasksToDelete) {
+      _tasksBox.delete(task.id);
+    }
+
+    // Remove o projeto
+    _projectsBox.delete(project.id);
+
     notifyListeners();
   }
 
   void deleteTask(Task task) {
-    _tasks.removeWhere((t) => t.id == task.id);
-    notifyListeners();
-  }
-  void deleteProject(Project project) {
-  _projects.removeWhere((p) => p.id == project.id);
-
-  _tasks.removeWhere((t) => t.projectId == project.id);
-
-  notifyListeners();
-}
-
-
-
-  void addOrUpdateMood(MoodEntry moodEntry) {
-    // Normaliza a data para ignorar a hora
-    final dateKey = DateTime(moodEntry.date.year, moodEntry.date.month, moodEntry.date.day);
-    _moods[dateKey] = moodEntry;
+    _tasksBox.delete(task.id);
     notifyListeners();
   }
 
   List<Task> getTasksForProject(String projectId) {
-    return _tasks.where((task) => task.projectId == projectId).toList();
+    return _tasksBox.values.where((task) => task.projectId == projectId).toList();
   }
 }
